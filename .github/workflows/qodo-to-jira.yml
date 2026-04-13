@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    outputs:
+      issues_found: ${{ steps.analysis.outputs.issues_found }}
 
     steps:
       - name: Checkout code
@@ -24,10 +26,8 @@ jobs:
         run: |
           echo "🔍 Running code quality analysis..."
           
-          # Check for common code issues
           ISSUES_FOUND=0
           
-          # Check for missing lowercase conversion in slugs
           if grep -r "function slugify" site/src/lib/slugs.ts | grep -q "."; then
             if ! grep -A 6 "function slugify" site/src/lib/slugs.ts | grep -q "toLowerCase"; then
               echo "❌ Issue: slugify function missing toLowerCase()"
@@ -35,38 +35,33 @@ jobs:
             fi
           fi
           
-          # Check for incorrect sort order
           if grep -q "leftTime - rightTime" site/src/lib/content.ts; then
             echo "❌ Issue: Sort order appears reversed in sortByPublishedAt"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
           
-          # Check for missing slash in blog route
           if grep -q "/blog\${normalizeSlug" site/src/lib/routes.ts; then
             echo "❌ Issue: Missing slash separator in blogPath route"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
           
-          # Check for missing fallback in buildImageUrl
           if grep -A 6 "function buildImageUrl" site/src/lib/seo.ts | grep -q "return buildAbsoluteUrl(image, siteUrl);"; then
             echo "❌ Issue: Missing fallback operator in buildImageUrl"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
           
-          # Check for loose equality instead of strict in comparisons
           if grep -q "\.slug == slug" site/src/lib/content.ts; then
             echo "❌ Issue: Using loose equality (==) instead of strict (===) for slug comparison"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
-          
+
+          echo "issues_found=$ISSUES_FOUND" >> $GITHUB_OUTPUT
+
           if [ $ISSUES_FOUND -gt 0 ]; then
             echo "⚠️ Found $ISSUES_FOUND code quality issue(s)"
-            exit 1
           else
             echo "✅ No issues found"
-            exit 0
           fi
-        continue-on-error: true
 
   create-jira-ticket:
     needs: code-analysis
@@ -76,7 +71,7 @@ jobs:
       (github.event_name == 'issue_comment' && 
        contains(github.event.comment.body, 'Qodo') && 
        contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'workflow_dispatch' && needs.code-analysis.result == 'failure')
+      (github.event_name == 'workflow_dispatch' && needs.code-analysis.outputs.issues_found != '0')
 
     steps:
       - name: Create Jira Ticket
@@ -84,7 +79,7 @@ jobs:
           COMMENT="${{ github.event.comment.body }}"
 
           if [ -z "$COMMENT" ]; then
-            COMMENT="Code analysis detected issues - check workflow run for details"
+            COMMENT="Code analysis detected ${{ needs.code-analysis.outputs.issues_found }} issue(s) - check workflow run for details"
           fi
 
           COMMENT=$(echo "$COMMENT" | jq -Rs .)
