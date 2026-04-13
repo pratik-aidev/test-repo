@@ -1,5 +1,9 @@
 name: Qodo → Jira Automation
 
+permissions:
+  contents: read
+  pull-requests: read
+
 on:
   issue_comment:
     types: [created]
