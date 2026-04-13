@@ -1,8 +1,10 @@
 name: Qodo → Jira Automation
-
 permissions:
   contents: read
   pull-requests: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   issue_comment:
@@ -12,51 +14,39 @@ on:
 jobs:
   code-analysis:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
       issues_found: ${{ steps.analysis.outputs.issues_found }}
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
-
+        uses: actions/checkout@v4
       - name: Run Code Analysis
         id: analysis
         run: |
           echo "🔍 Running code quality analysis..."
-          
           ISSUES_FOUND=0
-          
           if grep -r "function slugify" site/src/lib/slugs.ts | grep -q "."; then
             if ! grep -A 6 "function slugify" site/src/lib/slugs.ts | grep -q "toLowerCase"; then
               echo "❌ Issue: slugify function missing toLowerCase()"
               ISSUES_FOUND=$((ISSUES_FOUND + 1))
             fi
           fi
-          
           if grep -q "leftTime - rightTime" site/src/lib/content.ts; then
             echo "❌ Issue: Sort order appears reversed in sortByPublishedAt"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
-          
           if grep -q "/blog\${normalizeSlug" site/src/lib/routes.ts; then
             echo "❌ Issue: Missing slash separator in blogPath route"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
-          
           if grep -A 6 "function buildImageUrl" site/src/lib/seo.ts | grep -q "return buildAbsoluteUrl(image, siteUrl);"; then
             echo "❌ Issue: Missing fallback operator in buildImageUrl"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
-          
           if grep -q "\.slug == slug" site/src/lib/content.ts; then
             echo "❌ Issue: Using loose equality (==) instead of strict (===) for slug comparison"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
-
           echo "issues_found=$ISSUES_FOUND" >> $GITHUB_OUTPUT
-
           if [ $ISSUES_FOUND -gt 0 ]; then
             echo "⚠️ Found $ISSUES_FOUND code quality issue(s)"
           else
@@ -66,24 +56,19 @@ jobs:
   create-jira-ticket:
     needs: code-analysis
     runs-on: ubuntu-latest
-
     if: |
       (github.event_name == 'issue_comment' && 
        contains(github.event.comment.body, 'Qodo') && 
        contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
       (github.event_name == 'workflow_dispatch' && needs.code-analysis.outputs.issues_found != '0')
-
     steps:
       - name: Create Jira Ticket
         run: |
           COMMENT="${{ github.event.comment.body }}"
-
           if [ -z "$COMMENT" ]; then
             COMMENT="Code analysis detected ${{ needs.code-analysis.outputs.issues_found }} issue(s) - check workflow run for details"
           fi
-
           COMMENT=$(echo "$COMMENT" | jq -Rs .)
-
           curl -X POST \
             -u "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -H "Content-Type: application/json" \
