@@ -1,0 +1,25 @@
+jira:
+  enabled: true
+  base_url: "https://pratikprajapati9265.atlassian.net"
+  project_key: "TQ"
+  issue_type: "Task"
+
+automation:
+  create_ticket_on:
+    - issue_detected
+    - failing_tests
+    - pr_review_blocker
+    - security_issue
+    - todo_detected
+
+github:
+  link_pr_to_jira: true
+
+ticket:
+  default_assignee: null
+  default_priority: "Medium"
+  priority_mapping:
+    critical: "Highest"
+    high: "High"
+    medium: "Medium"
+    low: "Low"

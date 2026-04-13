@@ -1,0 +1,51 @@
+name: Qodo → Jira Automation
+
+on:
+  push:
+  pull_request:
+  issue_comment:
+    types: [created]
+
+jobs:
+  qodo-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Qodo Analysis
+        uses: qodo-ai/qodo-action@v1
+        with:
+          qodo_api_key: ${{ secrets.QODO_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  create-jira-ticket:
+    needs: qodo-analysis
+    runs-on: ubuntu-latest
+
+    if: contains(github.event.comment.body, 'Qodo') || github.event_name != 'issue_comment'
+
+    steps:
+      - name: Create Jira Ticket
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+
+          if [ -z "$COMMENT" ]; then
+            COMMENT="Qodo detected issue from CI/PR/PUSH"
+          fi
+
+          COMMENT=$(echo "$COMMENT" | jq -Rs .)
+
+          curl -X POST \
+            -u "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data "{
+              \"fields\": {
+                \"project\": {\"key\": \"TQ\"},
+                \"summary\": \"Qodo Issue Detected\",
+                \"description\": $COMMENT,
+                \"issuetype\": {\"name\": \"Task\"}
+              }
+            }" \
+            ${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue
