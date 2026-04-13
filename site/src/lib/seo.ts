@@ -36,7 +36,7 @@ function buildImageUrl(image: string | undefined, siteUrl?: string): string | un
     return undefined;
   }
 
-  return buildAbsoluteUrl(image, siteUrl) ?? image;
+  return buildAbsoluteUrl(image, siteUrl);
 }
 
 export function buildPageMetadata(input: PageMetadataInput): Metadata {
