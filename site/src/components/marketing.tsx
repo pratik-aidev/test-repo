@@ -4,7 +4,7 @@ import { site } from "@/app/_content";
 import { SiteIcon, type SiteIconName } from "./site-icons";
 
 function cn(...classes: Array<string | false | undefined | null>) {
-  return classes.filter(Boolean).join(" ");
+  return classes.join(" ");
 }
 
 export function JsonLd({ data }: { data: object }) {
