@@ -39,6 +39,18 @@ jobs:
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
           
+          # Check for missing slash in blog route
+          if grep -q "/blog\${normalizeSlug" site/src/lib/routes.ts; then
+            echo "❌ Issue: Missing slash separator in blogPath route"
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Check for missing fallback in buildImageUrl
+          if grep -A 6 "function buildImageUrl" site/src/lib/seo.ts | grep -q "return buildAbsoluteUrl(image, siteUrl);"; then
+            echo "❌ Issue: Missing fallback operator in buildImageUrl"
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
           if [ $ISSUES_FOUND -gt 0 ]; then
             echo "⚠️ Found $ISSUES_FOUND code quality issue(s)"
             exit 1
