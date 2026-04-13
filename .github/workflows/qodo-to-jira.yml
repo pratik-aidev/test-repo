@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Code Analysis
         id: analysis
@@ -48,6 +48,12 @@ jobs:
           # Check for missing fallback in buildImageUrl
           if grep -A 6 "function buildImageUrl" site/src/lib/seo.ts | grep -q "return buildAbsoluteUrl(image, siteUrl);"; then
             echo "❌ Issue: Missing fallback operator in buildImageUrl"
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          # Check for loose equality instead of strict in comparisons
+          if grep -q "\.slug == slug" site/src/lib/content.ts; then
+            echo "❌ Issue: Using loose equality (==) instead of strict (===) for slug comparison"
             ISSUES_FOUND=$((ISSUES_FOUND + 1))
           fi
           

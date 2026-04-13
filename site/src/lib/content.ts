@@ -34,7 +34,7 @@ export function getCollectionBySlug<T extends ContentCollectionName>(
   name: T,
   slug: string,
 ): (typeof collections)[T][number] | undefined {
-  return collections[name].find((item) => item.slug === slug);
+  return collections[name].find((item) => item.slug == slug);
 }
 
 export function getBySlug<T extends { slug: string }>(
