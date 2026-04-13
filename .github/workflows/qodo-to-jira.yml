@@ -1,0 +1,28 @@
+name: Qodo → Jira Automation
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  create-jira-ticket:
+    if: contains(github.event.comment.body, 'Qodo')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Jira Ticket
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+
+          curl -X POST \
+            -u "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data "{
+              \"fields\": {
+                \"project\": {\"key\": \"PROJ\"},
+                \"summary\": \"Qodo Issue Detected\",
+                \"description\": \"$COMMENT\",
+                \"issuetype\": {\"name\": \"Bug\"}
+              }
+            }" \
+            https://your-domain.atlassian.net/rest/api/3/issue

@@ -1,0 +1,12 @@
+analysis:
+  auto_review: true
+  suggest_fixes: true
+  detect_issues: true
+
+pull_requests:
+  auto_comment: true
+  review_on_open: true
+  review_on_push: true
+
+rules:
+  severity_threshold: medium
