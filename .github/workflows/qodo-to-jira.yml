@@ -10,30 +10,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  qodo-analysis:
+  code-analysis:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Qodo Analysis
-        id: qodo
-        uses: qodo-ai/qodo-action@v1
-        with:
-          qodo_api_key: ${{ secrets.QODO_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Code Analysis
+        id: analysis
+        run: |
+          echo "🔍 Running code quality analysis..."
+          
+          # Check for common code issues
+          ISSUES_FOUND=0
+          
+          # Check for missing lowercase conversion in slugs
+          if grep -r "function slugify" site/src/lib/slugs.ts | grep -q "."; then
+            if ! grep -A 6 "function slugify" site/src/lib/slugs.ts | grep -q "toLowerCase"; then
+              echo "❌ Issue: slugify function missing toLowerCase()"
+              ISSUES_FOUND=$((ISSUES_FOUND + 1))
+            fi
+          fi
+          
+          # Check for incorrect sort order
+          if grep -q "leftTime - rightTime" site/src/lib/content.ts; then
+            echo "❌ Issue: Sort order appears reversed in sortByPublishedAt"
+            ISSUES_FOUND=$((ISSUES_FOUND + 1))
+          fi
+          
+          if [ $ISSUES_FOUND -gt 0 ]; then
+            echo "⚠️ Found $ISSUES_FOUND code quality issue(s)"
+            exit 1
+          else
+            echo "✅ No issues found"
+            exit 0
+          fi
         continue-on-error: true
 
   create-jira-ticket:
-    needs: qodo-analysis
+    needs: code-analysis
     runs-on: ubuntu-latest
 
     if: |
       (github.event_name == 'issue_comment' && 
        contains(github.event.comment.body, 'Qodo') && 
        contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'workflow_dispatch' && needs.qodo-analysis.result == 'failure')
+      (github.event_name == 'workflow_dispatch' && needs.code-analysis.result == 'failure')
 
     steps:
       - name: Create Jira Ticket
@@ -41,7 +64,7 @@ jobs:
           COMMENT="${{ github.event.comment.body }}"
 
           if [ -z "$COMMENT" ]; then
-            COMMENT="Qodo detected issues - check workflow run for details"
+            COMMENT="Code analysis detected issues - check workflow run for details"
           fi
 
           COMMENT=$(echo "$COMMENT" | jq -Rs .)
@@ -52,7 +75,7 @@ jobs:
             --data "{
               \"fields\": {
                 \"project\": {\"key\": \"TQ\"},
-                \"summary\": \"Qodo Issue Detected\",
+                \"summary\": \"Code Quality Issue Detected\",
                 \"description\": $COMMENT,
                 \"issuetype\": {\"name\": \"Task\"}
               }
