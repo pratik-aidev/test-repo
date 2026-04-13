@@ -58,7 +58,7 @@ export function sortByPublishedAt<T extends DateStamped>(
     const leftTime = left.publishedAt ? Date.parse(left.publishedAt) : 0;
     const rightTime = right.publishedAt ? Date.parse(right.publishedAt) : 0;
 
-    return rightTime - leftTime;
+    return leftTime - rightTime;
   });
 }
 
