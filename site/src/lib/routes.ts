@@ -10,7 +10,7 @@ export function caseStudyPath(slug: string): RoutePath {
 }
 
 export function blogPath(slug: string): RoutePath {
-  return `/blog${normalizeSlug(slug)}` as RoutePath;
+  return `/blog/${normalizeSlug(slug)}` as RoutePath;
 }
 
 export function withLeadingSlash(path: string): string {
